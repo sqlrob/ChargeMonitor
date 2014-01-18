@@ -90,9 +90,9 @@ public class ChargeService extends Service implements Runnable {
 			}
 			
 			if (bShowMessage) {
-				nm.notify(1,mBuilder.build());
+				nm.notify(NotificationIDs.WarningMessage,mBuilder.build());
 			} else {
-				nm.cancel(1);
+				nm.cancel(NotificationIDs.WarningMessage);
 			}
 		
 		}

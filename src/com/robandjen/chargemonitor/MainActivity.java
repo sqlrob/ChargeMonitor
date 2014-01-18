@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
 			.setContentText("Charge Monitor is enabled");
 		
 		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-		nm.notify(2,builder.build());
+		nm.notify(NotificationIDs.StartMessage,builder.build());
 		
 		finish();
 	}
