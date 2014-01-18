@@ -13,7 +13,7 @@ import android.util.Log;
 public class ChargeService extends Service implements Runnable {
 
 	private Handler mHandler;
-	final int delay = 1000;
+	final int delay = 10*60*1000;
 	private IntentFilter mFilter;
 	int mLastPercent = -1;
 	Notification.Builder mBuilder;
@@ -91,6 +91,9 @@ public class ChargeService extends Service implements Runnable {
 			}
 		
 		}
+		
+		//This uses polling rather than push just in case things don't change,
+		//And results in worrying about fewer messages
 		mHandler.postDelayed(this, delay);
 	}	
 }
