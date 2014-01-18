@@ -17,6 +17,7 @@ public class ChargeService extends Service implements Runnable {
 	private IntentFilter mFilter;
 	int mLastPercent = -1;
 	Notification.Builder mBuilder;
+	final static String TAG = "ChargeService";
 	
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -27,7 +28,7 @@ public class ChargeService extends Service implements Runnable {
 	public void onCreate() {
 		super.onCreate();
 		
-		Log.i("ChargeService","Creating charge service");
+		Log.i(TAG,String.format("Creating charge service, delay=%d",delay));
 		
 		mBuilder = new Notification.Builder(this);
 		mBuilder.setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
@@ -58,6 +59,7 @@ public class ChargeService extends Service implements Runnable {
 				//Not plugged in, wipe out difference
 				//Don't stop, just in case I'm reading something immediately after start
 				//Let the broadcast receiver worry about starting and stopping
+				Log.i(TAG,"Not plugged in, skipping work");
 				mLastPercent = -1;
 				bShowMessage = false;
 			} else {
@@ -71,10 +73,13 @@ public class ChargeService extends Service implements Runnable {
 				} else  {
 					if (mLastPercent == curpct && curlevel != curscale) {
 						mBuilder.setContentText("Battery is not charging");
+						Log.w(TAG,String.format("Battery not charging, currently at %d%%",curpct));
 					} else if (mLastPercent > curpct) {
 						mBuilder.setContentText("Battery is discharging");
+						Log.w(TAG,String.format("Battery is discharging, currently %d%%, last %d%%",curpct,mLastPercent));
 					} else if  (curpct - mLastPercent < threshold && curlevel != curscale) {
 						mBuilder.setContentText("Battery is charging slowly");
+						Log.w(TAG,String.format("Battery charging slowly, currently %d%%, last %d%%",curpct,mLastPercent));
 					} else {
 						bShowMessage = false;
 					}
