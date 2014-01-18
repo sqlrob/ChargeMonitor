@@ -72,13 +72,13 @@ public class ChargeService extends Service implements Runnable {
 					bShowMessage = false;
 				} else  {
 					if (mLastPercent == curpct && curlevel != curscale) {
-						mBuilder.setContentText("Battery is not charging");
+						mBuilder.setContentText(getString(R.string.not_charging));
 						Log.w(TAG,String.format("Battery not charging, currently at %d%%",curpct));
 					} else if (mLastPercent > curpct) {
-						mBuilder.setContentText("Battery is discharging");
+						mBuilder.setContentText(getString(R.string.discharging));
 						Log.w(TAG,String.format("Battery is discharging, currently %d%%, last %d%%",curpct,mLastPercent));
 					} else if  (curpct - mLastPercent < threshold && curlevel != curscale) {
-						mBuilder.setContentText("Battery is charging slowly");
+						mBuilder.setContentText(getString(R.string.slow_charge));
 						Log.w(TAG,String.format("Battery charging slowly, currently %d%%, last %d%%",curpct,mLastPercent));
 					} else {
 						bShowMessage = false;

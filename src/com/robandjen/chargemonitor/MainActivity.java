@@ -21,8 +21,8 @@ public class MainActivity extends Activity {
 		
 		Notification.Builder builder = new Notification.Builder(this);
 		builder.setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
-			.setContentTitle("Charge Monitor")
-			.setContentText("Charge Monitor is enabled")
+			.setContentTitle(getString(R.string.app_name))
+			.setContentText(getString(R.string.enabled))
 			.setAutoCancel(true);
 		
 		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
