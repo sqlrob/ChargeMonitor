@@ -14,6 +14,7 @@
 //    along with ChargeMonitor.  If not, see <http://www.gnu.org/licenses/>.
 //    	
 
+/* Copyright 2014, Robert Myers */
 package com.robandjen.chargemonitor;
 
 import android.content.BroadcastReceiver;

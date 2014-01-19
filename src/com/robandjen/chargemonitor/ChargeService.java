@@ -13,7 +13,7 @@
 //    You should have received a copy of the GNU General Public License
 //    along with ChargeMonitor.  If not, see <http://www.gnu.org/licenses/>.
 //    	
-
+/* Copyright 2014, Robert Myers */
 package com.robandjen.chargemonitor;
 
 import android.app.Notification;
