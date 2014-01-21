@@ -49,24 +49,29 @@ public class ChargeService extends Service implements Runnable {
 	}
 	
 	static enum ChargingType {
-		Charging(R.string.charging),
-		Charged(R.string.charged),
-		Unknown(R.string.checking);
+		Charging(R.string.charging,android.R.drawable.ic_lock_idle_charging),
+		Charged(R.string.charged,android.R.drawable.ic_lock_idle_charging),
+		Unknown(R.string.checking,android.R.drawable.ic_lock_idle_charging);
 		
 		final int id;
-		
-		ChargingType(int id) {
+		final int icon;
+		ChargingType(int id,int icon) {
 			this.id = id;
+			this.icon = icon;
 		}
 		
 		int id() {
 			return id;
 		}
+		
+		int icon() {
+			return icon;
+		}
 	}
 	
 	void displayCharging(ChargingType type) {
 		Notification.Builder builder = new Notification.Builder(this);
-		builder.setSmallIcon(android.R.drawable.ic_lock_idle_charging)
+		builder.setSmallIcon(type.icon())
 			.setPriority(Notification.PRIORITY_LOW)
 			.setOngoing(true)
 			.setOnlyAlertOnce(true)
