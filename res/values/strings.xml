@@ -7,4 +7,5 @@
 	<string name="charging">Battery is charging normally</string>
 	<string name="charged">Battery is fully charged</string>
 	<string name="warning_title">Charging warning</string>
+	<string name="checking">Checking battery charging status</string>
 </resources>

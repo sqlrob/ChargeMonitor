@@ -48,14 +48,30 @@ public class ChargeService extends Service implements Runnable {
 		mHandler.postDelayed(this, delay);
 	}
 	
-	void displayCharging(boolean bIsCharged) {
+	static enum ChargingType {
+		Charging(R.string.charging),
+		Charged(R.string.charged),
+		Unknown(R.string.checking);
+		
+		final int id;
+		
+		ChargingType(int id) {
+			this.id = id;
+		}
+		
+		int id() {
+			return id;
+		}
+	}
+	
+	void displayCharging(ChargingType type) {
 		Notification.Builder builder = new Notification.Builder(this);
 		builder.setSmallIcon(android.R.drawable.ic_lock_idle_charging)
 			.setPriority(Notification.PRIORITY_LOW)
 			.setOngoing(true)
 			.setOnlyAlertOnce(true)
 			.setContentTitle(getString(R.string.app_name))
-			.setContentText(getString(bIsCharged ? R.string.charged : R.string.charging));
+			.setContentText(getString(type.id()));
 		
 		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		nm.cancel(NotificationIDs.WarningMessage);
@@ -99,20 +115,20 @@ public class ChargeService extends Service implements Runnable {
 			
 			if (isInitialStickyBroadcast()) {
 				mLastPercent = curpct;
-				displayCharging(curlevel == curscale);
+				displayCharging(curlevel == curscale ? ChargingType.Charged : ChargingType.Unknown);
 				rescheduleTimer(curpct);
 				return;
 			}
 			
 			if (curlevel == curscale) { 
 				//Fully charged
-				displayCharging(true);
+				displayCharging(ChargingType.Charged);
 			} else if ((curpct - mLastPercent) >= threshold && mLastPercent >=0) {
 				//One reading was enough
-				displayCharging(false);
+				displayCharging(ChargingType.Charging);
 			} else if ((curpct - mStartPercent) >= threshold && mStartPercent >= 0) {
 				//A couple of readings was enough
-				displayCharging(false);
+				displayCharging(ChargingType.Charging);
 			} else if (curpct < mStartPercent) {
 				//It's going down
 				displayWarning(WarningType.Discharging);
@@ -157,13 +173,13 @@ public class ChargeService extends Service implements Runnable {
 		final int batteryDelta = mLastPercent - mStartPercent;
 		
 		if (mLastPercent == 100) {
-			displayCharging(true);
+			displayCharging(ChargingType.Charged);
 		} else if (batteryDelta == 0) {
 			displayWarning(WarningType.NotCharging);
 		} else if (batteryDelta < 0) {
 			displayWarning(WarningType.Discharging);
 		} else if (batteryDelta >= threshold) {
-			displayCharging(false);
+			displayCharging(ChargingType.Charging);
 		} else {
 			displayWarning(WarningType.SlowCharging);
 		}
