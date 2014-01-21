@@ -1,8 +1,10 @@
 <resources>
 
     <string name="app_name">Charge Monitor</string>
-	<string name="enabled">Charge Monitor is enabled</string>
 	<string name="not_charging">Battery is not charging</string>
 	<string name="discharging">Battery is discharging</string>
 	<string name="slow_charge">Battery is charging slowly</string>
+	<string name="charging">Battery is charging normally</string>
+	<string name="charged">Battery is fully charged</string>
+	<string name="warning_title">Charging warning</string>
 </resources>

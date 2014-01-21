@@ -19,6 +19,8 @@ package com.robandjen.chargemonitor;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.BatteryManager;
@@ -28,13 +30,99 @@ import android.util.Log;
 
 public class ChargeService extends Service implements Runnable {
 
-	private Handler mHandler;
-	final int delay = 10*60*1000;
-	private IntentFilter mFilter;
-	int mLastPercent = -1;
-	Notification.Builder mBuilder;
 	final static String TAG = "ChargeService";
 	
+	private Handler mHandler;
+	private BroadcastReceiver mBatteryReceiver;
+	private IntentFilter mFilter;
+	
+	final int delay = 10*60*1000;
+	final int threshold = 1;
+	
+	int mLastPercent = -1; //Last percentage value received
+	int mStartPercent = -1; //What percentage was when this current time segment was run
+	
+	void rescheduleTimer(int curPercent) {
+		mHandler.removeCallbacks(this);
+		mStartPercent = curPercent;
+		mHandler.postDelayed(this, delay);
+	}
+	
+	void displayCharging(boolean bIsCharged) {
+		Notification.Builder builder = new Notification.Builder(this);
+		builder.setSmallIcon(android.R.drawable.ic_lock_idle_charging)
+			.setPriority(Notification.PRIORITY_LOW)
+			.setOngoing(true)
+			.setOnlyAlertOnce(true)
+			.setContentTitle(getString(R.string.app_name))
+			.setContentText(getString(bIsCharged ? R.string.charged : R.string.charging));
+		
+		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+		nm.cancel(NotificationIDs.WarningMessage);
+		nm.notify(NotificationIDs.OKMessage, builder.build());
+	}
+	
+	static enum WarningType { 
+		NotCharging(R.string.not_charging),
+		SlowCharging(R.string.slow_charge),
+		Discharging(R.string.discharging);
+		WarningType(int id) { 
+			this.id = id;
+		}
+		final int id;
+		int id() { 
+			return id; 
+		}
+	};
+	
+	void displayWarning(WarningType type) {
+		Notification.Builder builder = new Notification.Builder(this);
+		builder.setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
+			.setPriority(Notification.PRIORITY_HIGH)
+			.setOngoing(true)
+			.setOnlyAlertOnce(true)
+			.setContentTitle(getString(R.string.warning_title))
+			.setContentText(getString(type.id()));
+		
+		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+		nm.cancel(NotificationIDs.OKMessage);
+		nm.notify(NotificationIDs.WarningMessage, builder.build());
+	}
+	
+	class BatteryReceiver extends BroadcastReceiver {
+
+		@Override
+		public void onReceive(Context context, Intent batteryintent) {
+			int curlevel = batteryintent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0);
+			int curscale = batteryintent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+			int curpct = (curlevel * 100) / curscale;
+			
+			if (isInitialStickyBroadcast()) {
+				mLastPercent = curpct;
+				displayCharging(curlevel == curscale);
+				rescheduleTimer(curpct);
+				return;
+			}
+			
+			if (curlevel == curscale) { 
+				//Fully charged
+				displayCharging(true);
+			} else if ((curpct - mLastPercent) >= threshold && mLastPercent >=0) {
+				//One reading was enough
+				displayCharging(false);
+			} else if ((curpct - mStartPercent) >= threshold && mStartPercent >= 0) {
+				//A couple of readings was enough
+				displayCharging(false);
+			} else if (curpct < mStartPercent) {
+				//It's going down
+				displayWarning(WarningType.Discharging);
+			}
+			
+			//Don't worry about not charging or slow charges, that's handled in the timer			
+			mLastPercent = curpct;
+		}
+		
+	}
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
@@ -46,75 +134,40 @@ public class ChargeService extends Service implements Runnable {
 		
 		Log.i(TAG,String.format("Creating charge service, delay=%d",delay));
 		
-		mBuilder = new Notification.Builder(this);
-		mBuilder.setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
-			.setContentTitle("Battery charge warning")
-			.setOngoing(true);
-		
 		mHandler = new Handler();
 		mFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-		mHandler.post(this);
+		mBatteryReceiver = new BatteryReceiver();
+		registerReceiver(mBatteryReceiver, mFilter);
 	}
 
 	@Override
 	public void onDestroy() {
 		mHandler.removeCallbacks(this);
 		mHandler = null;
+		unregisterReceiver(mBatteryReceiver);
+		
+		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+		nm.cancelAll();
 		super.onDestroy();
 	}
 
 	@Override
 	public void run() {
-		Intent batteryintent = registerReceiver(null, mFilter);
-		if (batteryintent != null) {
-			boolean bPlugged = batteryintent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
-			NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-			boolean bShowMessage = true;
-			
-			if (!bPlugged) {
-				//Not plugged in, wipe out difference
-				//Don't stop, just in case I'm reading something immediately after start
-				//Let the broadcast receiver worry about starting and stopping
-				Log.i(TAG,"Not plugged in, skipping work");
-				mLastPercent = -1;
-				bShowMessage = false;
-			} else {
-				int curlevel = batteryintent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0);
-				int curscale = batteryintent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
-				int curpct = (curlevel * 100) / curscale;
-				final int threshold = 1;
-				if (mLastPercent == -1) {
-					mLastPercent = curpct;
-					bShowMessage = false;
-				} else  {
-					if (mLastPercent == curpct && curlevel != curscale) {
-						mBuilder.setContentText(getString(R.string.not_charging));
-						Log.w(TAG,String.format("Battery not charging, currently at %d%%",curpct));
-					} else if (mLastPercent > curpct) {
-						mBuilder.setContentText(getString(R.string.discharging));
-						Log.w(TAG,String.format("Battery is discharging, currently %d%%, last %d%%",curpct,mLastPercent));
-					} else if  (curpct - mLastPercent < threshold && curlevel != curscale) {
-						mBuilder.setContentText(getString(R.string.slow_charge));
-						Log.w(TAG,String.format("Battery charging slowly, currently %d%%, last %d%%",curpct,mLastPercent));
-					} else {
-						bShowMessage = false;
-					}
-					
-					mLastPercent = curpct;
-				}
-				
-			}
-			
-			if (bShowMessage) {
-				nm.notify(NotificationIDs.WarningMessage,mBuilder.build());
-			} else {
-				nm.cancel(NotificationIDs.WarningMessage);
-			}
 		
+		final int batteryDelta = mLastPercent - mStartPercent;
+		
+		if (mLastPercent == 100) {
+			displayCharging(true);
+		} else if (batteryDelta == 0) {
+			displayWarning(WarningType.NotCharging);
+		} else if (batteryDelta < 0) {
+			displayWarning(WarningType.Discharging);
+		} else if (batteryDelta >= threshold) {
+			displayCharging(false);
+		} else {
+			displayWarning(WarningType.SlowCharging);
 		}
 		
-		//This uses polling rather than push just in case things don't change,
-		//And results in worrying about fewer messages
-		mHandler.postDelayed(this, delay);
+		rescheduleTimer(mLastPercent);
 	}	
 }
