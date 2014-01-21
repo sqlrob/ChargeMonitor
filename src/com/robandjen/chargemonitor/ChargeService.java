@@ -51,7 +51,7 @@ public class ChargeService extends Service implements Runnable {
 	static enum ChargingType {
 		Charging(R.string.charging,android.R.drawable.ic_lock_idle_charging),
 		Charged(R.string.charged,android.R.drawable.ic_lock_idle_charging),
-		Unknown(R.string.checking,android.R.drawable.ic_lock_idle_charging);
+		Unknown(R.string.checking,R.drawable.stat_sys_battery_unknown);
 		
 		final int id;
 		final int icon;
