@@ -36,11 +36,18 @@ public class ChargeService extends Service implements Runnable {
 	private BroadcastReceiver mBatteryReceiver;
 	private IntentFilter mFilter;
 	
+	//Want to reinstall the battery broadcast receiver after 
+	//Seeing a screen on notification
+	//Doesn't seem like it's always persistent after a wake
+	private BroadcastReceiver mScreenReceiver;
+	
 	final int delay = 10*60*1000;
 	final int threshold = 1;
 	
 	int mLastPercent = -1; //Last percentage value received
 	int mStartPercent = -1; //What percentage was when this current time segment was run
+	
+	boolean mSeenCharge = false;
 	
 	void rescheduleTimer(int curPercent) {
 		mHandler.removeCallbacks(this);
@@ -110,12 +117,38 @@ public class ChargeService extends Service implements Runnable {
 		nm.notify(NotificationIDs.WarningMessage, builder.build());
 	}
 	
+	class ScreenReceiver extends BroadcastReceiver {
+
+		@Override
+		public void onReceive(Context context, Intent screenintent) {
+			if (isInitialStickyBroadcast()) {
+				return;
+			}
+			unregisterReceiver(mBatteryReceiver); //Get rid of the old one, just in case
+			registerReceiver(mBatteryReceiver,mFilter);
+		}
+		
+	}
 	class BatteryReceiver extends BroadcastReceiver {
 
 		@Override
 		public void onReceive(Context context, Intent batteryintent) {
 			int curlevel = batteryintent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0);
 			int curscale = batteryintent.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+			int curplug = batteryintent.getIntExtra(BatteryManager.EXTRA_PLUGGED,0);
+			
+			//If all of I sudden I see that I'm unplugged, I didn't get the unplug notification
+			//Stop the service instead of waiting for a possibly never coming unplug event
+			//Don't just check the first intent that comes in, since it may be a cached one
+			//that shows "unplugged"
+			//References #4
+			if (curplug != 0) {
+				mSeenCharge = true;
+			} else if (mSeenCharge) {
+				stopSelf();
+				return;
+			}
+			
 			int curpct = (curlevel * 100) / curscale;
 			
 			if (isInitialStickyBroadcast()) {
@@ -159,6 +192,9 @@ public class ChargeService extends Service implements Runnable {
 		mFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
 		mBatteryReceiver = new BatteryReceiver();
 		registerReceiver(mBatteryReceiver, mFilter);
+		
+		mScreenReceiver = new ScreenReceiver();
+		registerReceiver(mScreenReceiver,new IntentFilter(Intent.ACTION_SCREEN_ON));
 	}
 
 	@Override
@@ -166,6 +202,7 @@ public class ChargeService extends Service implements Runnable {
 		mHandler.removeCallbacks(this);
 		mHandler = null;
 		unregisterReceiver(mBatteryReceiver);
+		unregisterReceiver(mScreenReceiver);
 		
 		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 		nm.cancelAll();
