@@ -174,7 +174,12 @@ public class ChargeService extends Service implements Runnable {
 	public void onDestroy() {
 		mHandler.removeCallbacks(this);
 		mHandler = null;
-		unregisterReceiver(mBatteryReceiver);
+		try {
+			unregisterReceiver(mBatteryReceiver);
+		}
+		catch (IllegalArgumentException e) {
+			//Do Nothing, got stopped with the screen off
+		}
 		unregisterReceiver(mScreenReceiver);
 
 		super.onDestroy();
