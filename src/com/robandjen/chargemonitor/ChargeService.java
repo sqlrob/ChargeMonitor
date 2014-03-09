@@ -90,8 +90,7 @@ public class ChargeService extends Service implements Runnable {
 				unregisterReceiver(mBatteryReceiver);
 			} else if (screenintent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
 				registerReceiver(mBatteryReceiver,mFilter);
-			}
-			
+			}			
 		}
 		
 	}
@@ -118,18 +117,19 @@ public class ChargeService extends Service implements Runnable {
 			int curpct = (curlevel * 100) / curscale;
 			
 			if (isInitialStickyBroadcast()) {
-				mLastPercent = curpct;
-				if (mLastNotification != null) {
-					displayNotification(mLastNotification);
-				} else {
-					displayNotification(curlevel == curscale ? NotificationDetails.Charged : NotificationDetails.Unknown);
+				if (mLastPercent == -1) {
+					mLastPercent = curpct;
 				}
 				
+				if (mLastNotification != null) {
+					displayNotification(mLastNotification);
+				} else if (curlevel < curscale ){
+					displayNotification(NotificationDetails.Unknown);
+				}	
 				rescheduleTimer(curpct);
-				return;
 			}
 			
-			if (curlevel == curscale) { 
+			if (curlevel >= curscale) { 
 				//Fully charged
 				displayNotification(NotificationDetails.Charged);
 			} else if ((curpct - mLastPercent) >= threshold && mLastPercent >=0) {
