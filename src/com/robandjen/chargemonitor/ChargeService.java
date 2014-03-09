@@ -58,10 +58,6 @@ public class ChargeService extends Service implements Runnable {
 	}
 	
 	void displayNotification(NotificationDetail latest) {
-		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-		if (mLastNotification != null && latest.mNotifyId != mLastNotification.mNotifyId) {
-			nm.cancel(mLastNotification.mNotifyId);
-		}
 		Notification.Builder builder = new Notification.Builder(this);
 		
 		builder.setSmallIcon(latest.mIconId)
@@ -71,7 +67,14 @@ public class ChargeService extends Service implements Runnable {
 			.setContentTitle(getString(latest.mTitleId))
 			.setContentText(getString(latest.mContentId));
 		
-		nm.notify(latest.mNotifyId, builder.build());
+		Notification notification = builder.build();
+		
+		if (mLastNotification == null || latest.mNotifyId != mLastNotification.mNotifyId) {
+			startForeground(latest.mNotifyId, notification);
+		} else {
+			NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+			nm.notify(latest.mNotifyId, notification);
+		}
 		mLastNotification = latest;
 		
 	}
@@ -167,9 +170,7 @@ public class ChargeService extends Service implements Runnable {
 		mHandler = null;
 		unregisterReceiver(mBatteryReceiver);
 		unregisterReceiver(mScreenReceiver);
-		
-		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-		nm.cancelAll();
+
 		super.onDestroy();
 	}
 
