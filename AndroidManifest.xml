@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.robandjen.chargemonitor"
-    android:versionCode="4"
-    android:versionName="Version 0.1.4" >
+    android:versionCode="5"
+    android:versionName="Version 0.1.5" >
 
     <uses-sdk
         android:minSdkVersion="17"
