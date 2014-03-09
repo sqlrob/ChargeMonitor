@@ -49,72 +49,31 @@ public class ChargeService extends Service implements Runnable {
 	
 	boolean mSeenCharge = false;
 	
+	NotificationDetail mLastNotification;
+	
 	void rescheduleTimer(int curPercent) {
 		mHandler.removeCallbacks(this);
 		mStartPercent = curPercent;
 		mHandler.postDelayed(this, delay);
 	}
 	
-	static enum ChargingType {
-		Charging(R.string.charging,android.R.drawable.ic_lock_idle_charging),
-		Charged(R.string.charged,android.R.drawable.ic_lock_idle_charging),
-		Unknown(R.string.checking,R.drawable.stat_sys_battery_unknown);
-		
-		final int id;
-		final int icon;
-		ChargingType(int id,int icon) {
-			this.id = id;
-			this.icon = icon;
+	void displayNotification(NotificationDetail latest) {
+		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+		if (mLastNotification != null && latest.mNotifyId != mLastNotification.mNotifyId) {
+			nm.cancel(mLastNotification.mNotifyId);
 		}
-		
-		int id() {
-			return id;
-		}
-		
-		int icon() {
-			return icon;
-		}
-	}
-	
-	void displayCharging(ChargingType type) {
 		Notification.Builder builder = new Notification.Builder(this);
-		builder.setSmallIcon(type.icon())
-			.setPriority(Notification.PRIORITY_LOW)
+		
+		builder.setSmallIcon(latest.mIconId)
+			.setPriority(latest.mPriority)
 			.setOngoing(true)
 			.setOnlyAlertOnce(true)
-			.setContentTitle(getString(R.string.app_name))
-			.setContentText(getString(type.id()));
+			.setContentTitle(getString(latest.mTitleId))
+			.setContentText(getString(latest.mContentId));
 		
-		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-		nm.cancel(NotificationIDs.WarningMessage);
-		nm.notify(NotificationIDs.OKMessage, builder.build());
-	}
-	
-	static enum WarningType { 
-		NotCharging(R.string.not_charging),
-		SlowCharging(R.string.slow_charge),
-		Discharging(R.string.discharging);
-		WarningType(int id) { 
-			this.id = id;
-		}
-		final int id;
-		int id() { 
-			return id; 
-		}
-	};
-	
-	void displayWarning(WarningType type) {
-		Notification.Builder builder = new Notification.Builder(this);
-		builder.setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
-			.setPriority(Notification.PRIORITY_HIGH)
-			.setOngoing(true)
-			.setOnlyAlertOnce(true)
-			.setContentTitle(getString(R.string.warning_title))
-			.setContentText(getString(type.id()));
+		nm.notify(latest.mNotifyId, builder.build());
+		mLastNotification = latest;
 		
-		NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-		nm.cancel(NotificationIDs.OKMessage);
-		nm.notify(NotificationIDs.WarningMessage, builder.build());
 	}
 	
 	class ScreenReceiver extends BroadcastReceiver {
@@ -153,23 +112,28 @@ public class ChargeService extends Service implements Runnable {
 			
 			if (isInitialStickyBroadcast()) {
 				mLastPercent = curpct;
-				displayCharging(curlevel == curscale ? ChargingType.Charged : ChargingType.Unknown);
+				if (mLastNotification != null) {
+					displayNotification(mLastNotification);
+				} else {
+					displayNotification(curlevel == curscale ? NotificationDetails.Charged : NotificationDetails.Unknown);
+				}
+				
 				rescheduleTimer(curpct);
 				return;
 			}
 			
 			if (curlevel == curscale) { 
 				//Fully charged
-				displayCharging(ChargingType.Charged);
+				displayNotification(NotificationDetails.Charged);
 			} else if ((curpct - mLastPercent) >= threshold && mLastPercent >=0) {
 				//One reading was enough
-				displayCharging(ChargingType.Charging);
+				displayNotification(NotificationDetails.Charging);
 			} else if ((curpct - mStartPercent) >= threshold && mStartPercent >= 0) {
 				//A couple of readings was enough
-				displayCharging(ChargingType.Charging);
+				displayNotification(NotificationDetails.Charging);
 			} else if (curpct < mStartPercent) {
 				//It's going down
-				displayWarning(WarningType.Discharging);
+				displayNotification(NotificationDetails.Discharging);
 			}
 			
 			//Don't worry about not charging or slow charges, that's handled in the timer			
@@ -215,15 +179,15 @@ public class ChargeService extends Service implements Runnable {
 		final int batteryDelta = mLastPercent - mStartPercent;
 		
 		if (mLastPercent == 100) {
-			displayCharging(ChargingType.Charged);
+			displayNotification(NotificationDetails.Charged);
 		} else if (batteryDelta == 0) {
-			displayWarning(WarningType.NotCharging);
+			displayNotification(NotificationDetails.NotCharging);
 		} else if (batteryDelta < 0) {
-			displayWarning(WarningType.Discharging);
+			displayNotification(NotificationDetails.Discharging);
 		} else if (batteryDelta >= threshold) {
-			displayCharging(ChargingType.Charging);
+			displayNotification(NotificationDetails.Charging);
 		} else {
-			displayWarning(WarningType.SlowCharging);
+			displayNotification(NotificationDetails.SlowCharging);
 		}
 		
 		rescheduleTimer(mLastPercent);
