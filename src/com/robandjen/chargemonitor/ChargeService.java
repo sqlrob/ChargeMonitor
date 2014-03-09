@@ -86,8 +86,12 @@ public class ChargeService extends Service implements Runnable {
 			if (isInitialStickyBroadcast()) {
 				return;
 			}
-			unregisterReceiver(mBatteryReceiver); //Get rid of the old one, just in case
-			registerReceiver(mBatteryReceiver,mFilter);
+			if (screenintent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
+				unregisterReceiver(mBatteryReceiver);
+			} else if (screenintent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+				registerReceiver(mBatteryReceiver,mFilter);
+			}
+			
 		}
 		
 	}
@@ -161,7 +165,9 @@ public class ChargeService extends Service implements Runnable {
 		registerReceiver(mBatteryReceiver, mFilter);
 		
 		mScreenReceiver = new ScreenReceiver();
-		registerReceiver(mScreenReceiver,new IntentFilter(Intent.ACTION_SCREEN_ON));
+		IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+		filter.addAction(Intent.ACTION_SCREEN_OFF);
+		registerReceiver(mScreenReceiver,filter);
 	}
 
 	@Override
